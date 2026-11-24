@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 HOME = os.path.expanduser('~')
 STATE_DIR = os.path.join(HOME, '.handvault')
 LEDGER = os.path.join(STATE_DIR, 'ledger.tsv')
@@ -561,13 +561,18 @@ def cmd_list(a):
         print('(nothing yet)')
         return 0
     b = backend()
-    latest = {}
+    latest, lastlen = {}, {}
     for r in rows:
-        latest[(r['service'], r['account'])] = r
+        k = (r['service'], r['account'])
+        if r['action'] != 'deleted':
+            lastlen[k] = r['length']
+        latest[k] = r
     for (svc, acct), r in latest.items():
         state = 'live' if b.exists(svc, acct) else 'gone'
+        # a deletion row carries no length; report the last real one
+        n = r['length'] if r['action'] != 'deleted' else lastlen.get((svc, acct), 0)
         print('%-28s %-28s %3d chars  %s  %-5s %s' % (
-            svc, acct, r['length'], r['ts'], state, r['label']))
+            svc, acct, n, r['ts'], state, r['label']))
     return 0
 
 

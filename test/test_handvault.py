@@ -105,6 +105,16 @@ class TestCli(Base):
         self.assertEqual(r.returncode, 1)
         self.assertIn('refusing', r.stdout)
 
+    def test_list_keeps_length_after_delete(self):
+        # a deletion row must not erase the last known length
+        secret = 'Abc-123-test'
+        self.run_hv('put', 'svc-a', 'eve', '--from-stdin', stdin=secret + '\n')
+        r = self.run_hv('rm', 'svc-a', 'eve')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = self.run_hv('list').stdout
+        self.assertIn('gone', out)
+        self.assertIn('%d chars' % len(secret), out)
+
     def test_list_shows_state(self):
         self.run_hv('put', 'svc', 'acct', '--from-stdin', stdin='1234567\n')
         r = self.run_hv('list')
