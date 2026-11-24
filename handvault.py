@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 
-VERSION = '0.1.6'
+VERSION = '0.1.7'
 HOME = os.path.expanduser('~')
 STATE_DIR = os.path.join(HOME, '.handvault')
 LEDGER = os.path.join(STATE_DIR, 'ledger.tsv')

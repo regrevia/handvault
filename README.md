@@ -9,9 +9,9 @@ credential you don't want to paste into a chat window.
 $ handvault put regrevia-mail yc@regrevia.com --imap imap.qiye.aliyun.com:993
 a terminal window is open — type the password there
 
-    (in that window)  Password (no echo): ●●●●●●●●●●●●●●●●●
+    (in that window)  Password (no echo):
                       17 characters
-                      Again: ●●●●●●●●●●●●●●●●●
+                      Again:
                       17 characters
 
 OK service=regrevia-mail account=yc@regrevia.com length=17
