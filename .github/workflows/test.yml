@@ -5,8 +5,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python: ['3.8', '3.12']
+        os: [ubuntu-22.04, ubuntu-latest, macos-latest]
+        python: ['3.9', '3.12']
+        include:
+          # 3.8 只在旧镜像上还装着；最低版本仍然实测，不靠声明。
+          - os: ubuntu-22.04
+            python: '3.8'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
