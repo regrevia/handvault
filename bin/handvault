@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+'use strict';
+// npm 入口：把参数原样交给 Python 实现，stdio 直通（交互输入要靠真 tty）。
+const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+
+const target = path.join(__dirname, '..', 'handvault.py');
+const candidates = [
+  process.env.HANDVAULT_PYTHON,
+  'python3',
+  '/usr/bin/python3',
+  '/opt/homebrew/bin/python3',
+].filter(Boolean);
+
+function pick() {
+  for (const c of candidates) {
+    if (c.includes('/')) {
+      try { fs.accessSync(c, fs.constants.X_OK); return c; } catch (_) {}
+    } else {
+      const dirs = (process.env.PATH || '').split(path.delimiter);
+      for (const d of dirs) {
+        const p = path.join(d, c);
+        try { fs.accessSync(p, fs.constants.X_OK); return p; } catch (_) {}
+      }
+    }
+  }
+  return null;
+}
+
+const python = pick();
+if (!python) {
+  console.error('handvault needs python3 (3.8+). Install it or set HANDVAULT_PYTHON.');
+  process.exit(1);
+}
+
+const child = spawn(python, [target, ...process.argv.slice(2)], { stdio: 'inherit' });
+child.on('error', (e) => { console.error('handvault: ' + e.message); process.exit(1); });
+child.on('exit', (code, signal) => {
+  if (signal) process.kill(process.pid, signal);
+  else process.exit(code === null ? 1 : code);
+});

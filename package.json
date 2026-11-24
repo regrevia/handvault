@@ -1,0 +1,43 @@
+{
+  "name": "handvault",
+  "version": "0.1.0",
+  "description": "People type the password, agents only get its length. Secrets go straight into the system keychain, never into the model's context.",
+  "keywords": [
+    "secrets",
+    "keychain",
+    "credentials",
+    "agent",
+    "llm",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "regrevia",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/regrevia/handvault.git"
+  },
+  "bugs": {
+    "url": "https://github.com/regrevia/handvault/issues"
+  },
+  "homepage": "https://github.com/regrevia/handvault#readme",
+  "bin": {
+    "handvault": "bin/handvault"
+  },
+  "files": [
+    "bin/handvault",
+    "handvault.py",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "scripts": {
+    "test": "python3 -m unittest discover -s test -v"
+  }
+}
