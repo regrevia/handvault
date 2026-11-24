@@ -22,8 +22,10 @@ dumps and screenshots.
 3. `get --show` requires a tty.
 4. Nothing is written to disk except the OS keychain, plus a ledger of
    `timestamp / service / account / length / label` at mode `0600`.
-5. `exec` passes the secret through an environment variable to a child process,
-   never through a shell string.
+5. `exec` hands the secret to one child process, never through a shell string.
+   `--fd N` uses an inherited pipe; `--env NAME` uses one environment variable,
+   which the same user can read back from `/proc` on Linux — documented, and the
+   reason `--fd` exists.
 6. Every write is read back and compared; a mismatch is reported as failure.
 
 ## Reporting

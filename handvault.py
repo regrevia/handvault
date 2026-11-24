@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 
-VERSION = '0.1.4'
+VERSION = '0.1.5'
 HOME = os.path.expanduser('~')
 STATE_DIR = os.path.join(HOME, '.handvault')
 LEDGER = os.path.join(STATE_DIR, 'ledger.tsv')
@@ -287,9 +287,11 @@ def ledger_append(service, account, length, label, action='put'):
     ensure_state_dir()
     line = '\t'.join([time.strftime('%Y-%m-%dT%H:%M:%S'), service, account,
                       str(length), action, label or ''])
-    with open(LEDGER, 'a', encoding='utf-8') as f:
-        f.write(line + '\n')
-    os.chmod(LEDGER, 0o600)
+    fd = os.open(LEDGER, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    try:
+        os.write(fd, (line + '\n').encode('utf-8'))
+    finally:
+        os.close(fd)
 
 
 def ledger_read():
@@ -536,10 +538,40 @@ def cmd_get(a):
     return 0
 
 
+ENV_NAME = re.compile(r'^[A-Za-z_][A-Za-z0-9_]{0,63}$')
+
+
 def cmd_exec(a):
     b = backend()
     b.preflight()
     v = _fetch(a, b)
+
+    if a.fd is not None:
+        # 秘密走一条只读管道，落到子进程的固定 fd 上：不进环境、不进 argv、不落盘。
+        if not 3 <= a.fd <= 99:
+            die('FAIL --fd must be between 3 and 99', 2)
+        r, w = os.pipe()
+        try:
+            os.write(w, v.encode())
+        finally:
+            os.close(w)
+
+        try:
+            os.fstat(a.fd)
+        except OSError:
+            pass
+        else:
+            die('FAIL fd %d is already open; pick another' % a.fd, 2)
+        os.dup2(r, a.fd)
+        os.close(r)
+        try:
+            return subprocess.run(a.cmdargs, env=dict(os.environ),
+                                  pass_fds=(a.fd,)).returncode
+        finally:
+            os.close(a.fd)
+
+    if not ENV_NAME.match(a.env or ''):
+        die('FAIL --env needs a shell identifier (letters, digits, underscore)', 2)
     env = dict(os.environ, **{a.env: v})
     return subprocess.run(a.cmdargs, env=env).returncode
 
@@ -653,7 +685,8 @@ def main(argv=None):
     sp = sub.add_parser('exec', help='注入环境变量后执行')
     sp.add_argument('service')
     sp.add_argument('account', nargs='?', default=None)
-    sp.add_argument('--env', required=True)
+    sp.add_argument('--env', default=None)
+    sp.add_argument('--fd', type=int, default=None)
 
     sub.add_parser('list', help='存过什么')
     sub.add_parser('doctor', help='自检')
@@ -669,6 +702,8 @@ def main(argv=None):
     if a.cmd == 'exec':
         if not tail:
             die(t('no_cmd'), 2)
+        if (a.env is None) == (a.fd is None):
+            die('FAIL give exactly one of --env NAME or --fd N', 2)
         a.cmdargs = tail
 
     harden_process()

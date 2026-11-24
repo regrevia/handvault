@@ -73,6 +73,34 @@ class TestCli(Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.strip(), '21')
 
+    def test_exec_fd_carries_secret_without_env(self):
+        secret = 'Abc-123-test'
+        self.run_hv('put', 'svc', 'acct', '--from-stdin', stdin=secret + '\n')
+        r = self.run_hv('exec', 'svc', 'acct', '--fd', '7', '--',
+                        sys.executable, '-c',
+                        'import os,sys;d=os.read(7,4096).decode();'
+                        'print(len(d));'
+                        'print("inenv", d in "".join(os.environ.values()))')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(str(len(secret)), r.stdout)
+        self.assertIn('inenv False', r.stdout)
+        self.assertNotIn(secret, r.stdout)
+
+    def test_exec_needs_exactly_one_channel(self):
+        self.run_hv('put', 'svc', 'acct', '--from-stdin', stdin='x\n')
+        both = self.run_hv('exec', 'svc', 'acct', '--env', 'S', '--fd', '5',
+                           '--', sys.executable, '-c', 'pass')
+        self.assertEqual(both.returncode, 2)
+        neither = self.run_hv('exec', 'svc', 'acct', '--', sys.executable, '-c', 'pass')
+        self.assertEqual(neither.returncode, 2)
+
+    def test_exec_rejects_bad_env_name(self):
+        self.run_hv('put', 'svc', 'acct', '--from-stdin', stdin='x\n')
+        bad = self.run_hv('exec', 'svc', 'acct', '--env', 'A=B',
+                          '--', sys.executable, '-c', 'pass')
+        self.assertEqual(bad.returncode, 2)
+
+
     def test_exec_requires_command(self):
         r = self.run_hv('exec', 'svc', 'acct', '--env', 'S')
         self.assertEqual(r.returncode, 2)

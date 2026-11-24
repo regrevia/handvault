@@ -49,6 +49,7 @@ it, the machine stores it, the agent only learns that it happened.**
 | `get SERVICE [ACCOUNT]` | length only; `--show` prints plaintext **and requires a tty** |
 | `probe SERVICE [ACCOUNT] --imap H:P --smtp H:P` | `IMAP OK`, `SMTP FAIL …` — never the password |
 | `exec SERVICE [ACCOUNT] --env NAME -- CMD…` | the command's own output; secret arrives via env |
+| `exec SERVICE [ACCOUNT] --fd N -- CMD…` | same, but the secret arrives on fd N instead of the env |
 | `list` | service, account, length, timestamp, still-there |
 | `rm SERVICE [ACCOUNT]` | deleted |
 | `doctor` | backend, file modes, leftovers |
@@ -66,11 +67,21 @@ what you type still lands in the keychain, and `handvault list` shows it later.
 twice, so a typo can't silently become your new password.
 
 **3. `exec` — the secret never leaves the process tree.** For scripts and test
-suites: the value is read from the keychain and injected as one environment
-variable, so nothing is echoed and nothing is exported to your shell.
+suites: the value is read from the keychain and handed to one child process, so
+nothing is echoed and nothing is exported to your shell.
 
 ```sh
 handvault exec qq-mail 2429936596@qq.com --env QPASS -- ./run-tests.sh
+```
+
+`--env` is the convenient form. An environment variable is readable by the same
+user through `/proc/<pid>/environ` on Linux and shows up in crash dumps, so when
+that matters use `--fd`, which writes the secret into a pipe the child inherits
+at a fixed descriptor — never in `argv`, never in the environment, never on disk:
+
+```sh
+handvault exec qq-mail 2429936596@qq.com --fd 7 -- ./run-tests.sh
+# inside the script:  read -r QPASS <&7   (or os.read(7, 4096))
 ```
 
 ### Probes
@@ -131,7 +142,7 @@ handvault.probe(secret, 'me@example.com', imap='imap.example.com:993')
 python3 -m unittest discover -s test -v
 ```
 
-19 tests, all against a fake backend and a temporary state directory — the real
+22 tests, all against a fake backend and a temporary state directory — the real
 keychain and `~/.handvault` are never touched.
 
 ## License
