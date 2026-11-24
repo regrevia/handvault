@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 
-VERSION = '0.1.0'
+VERSION = '0.1.2'
 HOME = os.path.expanduser('~')
 STATE_DIR = os.path.join(HOME, '.handvault')
 LEDGER = os.path.join(STATE_DIR, 'ledger.tsv')
@@ -300,8 +300,12 @@ def ledger_read():
         for line in f:
             p = line.rstrip('\n').split('\t')
             if len(p) >= 4:
+                try:
+                    n = int(p[3])
+                except ValueError:
+                    continue
                 rows.append({'ts': p[0], 'service': p[1], 'account': p[2],
-                             'length': int(p[3]),
+                             'length': n,
                              'action': p[4] if len(p) > 4 else 'put',
                              'label': p[5] if len(p) > 5 else ''})
     return rows
@@ -324,7 +328,14 @@ def probe(secret, user, imap=None, smtp=None):
         host, port = hostport(imap, 993)
         try:
             import imaplib
-            m = imaplib.IMAP4_SSL(host, port, timeout=PROBE_TIMEOUT)
+            if port == 143:
+                m = imaplib.IMAP4(host, port, timeout=PROBE_TIMEOUT)
+                try:
+                    m.starttls()
+                except Exception:
+                    pass
+            else:
+                m = imaplib.IMAP4_SSL(host, port, timeout=PROBE_TIMEOUT)
             m.login(user, secret)
             m.select('INBOX')
             n = len(m.search(None, 'ALL')[1][0].split())
@@ -337,7 +348,14 @@ def probe(secret, user, imap=None, smtp=None):
         host, port = hostport(smtp, 465)
         try:
             import smtplib
-            s = smtplib.SMTP_SSL(host, port, timeout=PROBE_TIMEOUT)
+            if port == 465:
+                s = smtplib.SMTP_SSL(host, port, timeout=PROBE_TIMEOUT)
+            else:
+                s = smtplib.SMTP(host, port, timeout=PROBE_TIMEOUT)
+                s.ehlo()
+                if s.has_extn('starttls'):
+                    s.starttls()
+                    s.ehlo()
             s.login(user, secret)
             s.quit()
             out.append('SMTP OK (%s:%d)' % (host, port))

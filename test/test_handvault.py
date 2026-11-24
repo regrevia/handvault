@@ -139,6 +139,12 @@ class TestUnits(unittest.TestCase):
         self.assertIn('\t7\t', body)
         self.assertEqual(mode, 0o600)
 
+    def test_version_matches_package_json(self):
+        import json
+        pkg = json.load(open(os.path.join(ROOT, 'package.json'), encoding='utf-8'))
+        self.assertEqual(self.hv.VERSION, pkg['version'],
+                         'handvault.py VERSION must match package.json')
+
     def test_status_file_is_private(self):
         with tempfile.TemporaryDirectory() as d:
             self.hv.STATE_DIR = d
