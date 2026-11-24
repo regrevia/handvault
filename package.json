@@ -1,6 +1,6 @@
 {
   "name": "handvault",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "People type the password, agents only get its length. Secrets go straight into the system keychain, never into the model's context.",
   "keywords": [
     "secrets",

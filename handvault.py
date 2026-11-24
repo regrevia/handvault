@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 
-VERSION = '0.1.5'
+VERSION = '0.1.6'
 HOME = os.path.expanduser('~')
 STATE_DIR = os.path.join(HOME, '.handvault')
 LEDGER = os.path.join(STATE_DIR, 'ledger.tsv')
@@ -273,6 +273,10 @@ def _drain(fd, seconds=0.2):
 
 
 def backend() -> Backend:
+    # HANDVAULT_SECURITY 指向一个 security(1) 兼容的可执行文件，任何平台都认。
+    # 它只为人自测，或者是 Linux 上装了个 security 外壳；preflight 会验属主与权限。
+    if os.environ.get('HANDVAULT_SECURITY'):
+        return MacBackend()
     if sys.platform == 'darwin':
         return MacBackend()
     b = LinuxBackend()
