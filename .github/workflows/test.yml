@@ -6,11 +6,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-latest, macos-latest]
-        python: ['3.9', '3.12']
+        python: ['3.12', '3.13']
         include:
-          # 3.8 只在旧镜像上还装着；最低版本仍然实测，不靠声明。
+          # 26.04 只提供 3.10 以上；最低版本 3.8 在 22.04 上实测，不靠声明。
           - os: ubuntu-22.04
             python: '3.8'
+          - os: ubuntu-22.04
+            python: '3.9'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
