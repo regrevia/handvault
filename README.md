@@ -131,7 +131,8 @@ handvault.probe(secret, 'me@example.com', imap='imap.example.com:993')
 python3 -m unittest discover -s test -v
 ```
 
-15 tests, all against a fake backend — the real keychain is never touched.
+19 tests, all against a fake backend and a temporary state directory — the real
+keychain and `~/.handvault` are never touched.
 
 ## License
 

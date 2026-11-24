@@ -123,9 +123,33 @@ class TestCli(Base):
         self.assertIn('live', r.stdout)
 
 
+    def test_no_secret_anywhere_in_state_dir(self):
+        secret = 'Abc-123-test'
+        self.run_hv('put', 'svc', 'acct', '--from-stdin', stdin=secret + '\n')
+        state = os.path.join(self.env['HOME'], '.handvault')
+        seen = 0
+        for name in os.listdir(state):
+            path = os.path.join(state, name)
+            if not os.path.isfile(path):
+                continue
+            with open(path, 'rb') as fh:
+                blob = fh.read()
+            seen += 1
+            self.assertNotIn(secret.encode(), blob, 'secret leaked into ' + name)
+        self.assertGreater(seen, 0, 'expected state files to inspect')
+
+
 class TestUnits(unittest.TestCase):
     def setUp(self):
         self.hv = load()
+        # never touch the real ~/.handvault from tests
+        self.tmp = tempfile.mkdtemp(prefix='hv-unit-')
+        self.hv.STATE_DIR = os.path.join(self.tmp, 'state')
+        self.hv.LEDGER = os.path.join(self.hv.STATE_DIR, 'ledger.tsv')
+        os.makedirs(self.hv.STATE_DIR, mode=0o700)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_check_token(self):
         self.assertEqual(self.hv.check_token('a@b.com', 'account'), 'a@b.com')
@@ -154,6 +178,33 @@ class TestUnits(unittest.TestCase):
         pkg = json.load(open(os.path.join(ROOT, 'package.json'), encoding='utf-8'))
         self.assertEqual(self.hv.VERSION, pkg['version'],
                          'handvault.py VERSION must match package.json')
+
+    def test_window_shim_is_private_and_quoted(self):
+        """没有终端时把 put 交给人：影子脚本必须 0700、参数被引用、不含秘密。"""
+        captured = {}
+
+        def fake_open(shim):
+            captured['shim'] = shim
+            return True
+
+        orig = self.hv.open_terminal
+        self.hv.open_terminal = fake_open
+        try:
+            rc = self.hv.launch_window(
+                ['put', 'svc-a', 'eve', '--label', 'a b;rm -rf /'], 1)
+        finally:
+            self.hv.open_terminal = orig
+        self.assertEqual(rc, 2, 'no one typed anything, so it must time out')
+
+        shim = captured['shim']
+        st = os.stat(shim)
+        self.assertEqual(st.st_mode & 0o077, 0, 'shim must not be group/world readable')
+        with open(shim, encoding='utf-8') as fh:
+            body = fh.read()
+        self.assertIn('--in-window', body)
+        self.assertIn('--run-id', body)
+        self.assertIn("'a b;rm -rf /'", body, 'label must be shell-quoted, never interpolated')
+        self.assertNotIn('from-stdin', body)
 
     def test_status_file_is_private(self):
         with tempfile.TemporaryDirectory() as d:
